@@ -42,7 +42,8 @@ async function fetchAndStoreVideos(query, publishedAfter = null) {
     if (err.response && err.response.status === 403) {
       apiKeyManager.rotateKey();
     }
-    // Optionally log error
+    console.log('Error fetching videos:', err.message);
+    
     return 0;
   }
 }

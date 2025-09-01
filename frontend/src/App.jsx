@@ -51,9 +51,9 @@ function App() {
   const totalPages = Math.ceil(total / limit);
 
 
-  // Always trigger a search, even if the term hasn't changed, by using a unique key
+  // Always trigger a search when clicking the search button
   const handleSearch = () => {
-    setSearchTerm(q + ' ' + Date.now()); // force effect to run
+    setSearchTerm(q + ' ' + Date.now()); 
     setPage(1);
   };
 
