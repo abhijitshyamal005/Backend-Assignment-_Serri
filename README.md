@@ -57,7 +57,14 @@ FETCH_INTERVAL=10000
    ```sh
    cd backend
    npm install
+<<<<<<< HEAD
    npm start
+=======
+   ```
+3. Start the server:
+   ```sh
+   npm run dev 
+>>>>>>> ebaf74895fe6badfbc215e9dd817f7808b9252e5
    ```
    Or use Docker:
    ```sh
