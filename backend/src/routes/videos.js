@@ -1,45 +1,93 @@
-const express = require('express');
-const Video = require('../models/video');
-const router = express.Router();
 
-// GET /videos - paginated, sorted
+const express = require('express');
+const router = express.Router();
+const Video = require('../models/video');
+
+// GET /videos - paginated, sorted from DB
 router.get('/', async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 20;
   const skip = (page - 1) * limit;
-  const total = await Video.countDocuments();
-  const videos = await Video.find()
-    .sort({ publishedAt: -1 })
-    .skip(skip)
-    .limit(limit);
-  res.json({ total, page, limit, videos });
+  try {
+    const total = await Video.countDocuments();
+    const videos = await Video.find()
+      .sort({ publishedAt: -1 })
+      .skip(skip)
+      .limit(limit);
+    res.json({ total, page, limit, videos });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
-// GET /videos/search?q= - search API
-const { fetchVideosForQuery } = require('../services/youtubeFetcher');
+// GET /videos/search?q= - always fetch from YouTube API, show results, then store in DB in background
+const { fetchAndStoreVideos } = require('../services/youtubeFetcher');
+const axios = require('axios');
 router.get('/search', async (req, res) => {
   const q = req.query.q || '';
-  const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 20;
+  const page = parseInt(req.query.page) || 1;
   const skip = (page - 1) * limit;
-  const words = q.split(/\s+/).filter(Boolean);
-  const regex = words.map(w => `(?=.*${w})`).join('');
-  const searchRegex = new RegExp(regex, 'i');
-  const query = q ? {
-    $or: [
-      { title: searchRegex },
-      { description: searchRegex },
-    ]
-  } : {};
+  const source = req.query.source;
 
-  // Always fetch from YouTube for new search, then return latest results
-  await fetchVideosForQuery(q);
-  const total = await Video.countDocuments(query);
-  const videos = await Video.find(query)
-    .sort({ publishedAt: -1 })
-    .skip(skip)
-    .limit(limit);
-  res.json({ total, page, limit, videos });
+  if (source === 'db') {
+    // Search in the database only
+    const words = q.split(/\s+/).filter(Boolean);
+    const regex = words.map(w => `(?=.*${w})`).join('');
+    const searchRegex = new RegExp(regex, 'i');
+    const queryObj = q ? {
+      $or: [
+        { title: searchRegex },
+        { description: searchRegex },
+      ]
+    } : {};
+    try {
+      const total = await Video.countDocuments(queryObj);
+      const videos = await Video.find(queryObj)
+        .sort({ publishedAt: -1 })
+        .skip(skip)
+        .limit(limit);
+      return res.json({ total, page, limit, videos });
+    } catch (err) {
+      return res.status(500).json({ message: 'Server/database error: ' + (err.message || 'Unknown error') });
+    }
+  }
+
+  // Default: fetch from YouTube API and show immediately, then store in DB
+  const apiKeyManager = require('../utils/apiKeyManager');
+  const config = require('../config');
+  const apiKey = new apiKeyManager(config.YOUTUBE_API_KEYS);
+  let params = {
+    part: 'snippet',
+    q,
+    type: 'video',
+    order: 'date',
+    maxResults: limit,
+    key: apiKey.getKey(),
+  };
+  try {
+    // Always fetch from YouTube API first
+    const response = await axios.get('https://www.googleapis.com/youtube/v3/search', { params });
+    const items = response.data.items || [];
+    const videos = items.map(item => {
+      const v = item.snippet;
+      return {
+        videoId: item.id.videoId,
+        title: v.title,
+        description: v.description,
+        publishedAt: v.publishedAt,
+        thumbnails: v.thumbnails,
+        channelTitle: v.channelTitle,
+        raw: item,
+      };
+    });
+    // Respond immediately with fetched videos
+    res.json({ total: videos.length, page, limit, videos });
+    // Store in DB in background
+    fetchAndStoreVideos(q).catch(() => {});
+  } catch (err) {
+    res.status(502).json({ message: 'Failed to fetch from YouTube API: ' + (err.response?.data?.error?.message || err.message) });
+  }
 });
 
 module.exports = router;

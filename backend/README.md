@@ -39,6 +39,14 @@ npm start
 - `PORT` — Server port (default: 3000)
 - `FETCH_INTERVAL` — Fetch interval in ms (default: 10000)
 
+## Docker
+
+A `Dockerfile` and `docker-compose.yml` are provided for easy setup. See below for usage instructions.
+
+---
+
+For frontend instructions, see `frontend/README.md`.
+
 ## Notes
 - Make sure your API keys have YouTube Data API v3 enabled.
 - The fetcher will rotate API keys if quota is exhausted.

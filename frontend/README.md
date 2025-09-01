@@ -25,3 +25,17 @@ A simple React dashboard to view, search, and paginate YouTube videos fetched by
 - Search videos by title or description (multi-word, partial match)
 - Pagination and page size selection
 - View video details and open on YouTube
+
+## Docker
+
+A `Dockerfile` is provided for containerized frontend development. To build and run:
+
+```sh
+cd frontend
+# Build image
+# docker build -t frontend .
+# Run container (map port 5173)
+# docker run -p 5173:5173 frontend
+```
+
+The frontend expects the backend to be available at `http://localhost:3000` (or update the API URL in the code if needed).

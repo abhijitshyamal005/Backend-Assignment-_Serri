@@ -1,10 +1,13 @@
+
 const express = require('express');
 const mongoose = require('mongoose');
 const config = require('./config');
 const { startFetcher } = require('./services/youtubeFetcher');
 const videosRouter = require('./routes/videos');
+const cors = require('cors');
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 app.use('/videos', videosRouter);

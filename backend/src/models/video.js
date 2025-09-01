@@ -10,4 +10,7 @@ const videoSchema = new mongoose.Schema({
   raw: { type: Object },
 }, { timestamps: true });
 
+// Ensure compound text index for better search performance
+videoSchema.index({ title: 'text', description: 'text' });
+
 module.exports = mongoose.model('Video', videoSchema);

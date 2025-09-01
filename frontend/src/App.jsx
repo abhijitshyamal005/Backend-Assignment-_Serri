@@ -18,6 +18,7 @@ function VideoCard({ video }) {
   );
 }
 
+
 function App() {
   const [videos, setVideos] = useState([]);
   const [q, setQ] = useState('');
@@ -26,9 +27,11 @@ function App() {
   const [total, setTotal] = useState(0);
   const [limit, setLimit] = useState(10);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     const url = searchTerm
       ? `/videos/search?q=${encodeURIComponent(searchTerm)}&page=${page}&limit=${limit}`
       : `/videos?page=${page}&limit=${limit}`;
@@ -37,13 +40,20 @@ function App() {
         setVideos(res.data.videos);
         setTotal(res.data.total);
       })
+      .catch(err => {
+        setError(err.response?.data?.message || err.message || 'Unknown error');
+        setVideos([]);
+        setTotal(0);
+      })
       .finally(() => setLoading(false));
   }, [searchTerm, page, limit]);
 
   const totalPages = Math.ceil(total / limit);
 
+
+  // Always trigger a search, even if the term hasn't changed, by using a unique key
   const handleSearch = () => {
-    setSearchTerm(q);
+    setSearchTerm(q + ' ' + Date.now()); // force effect to run
     setPage(1);
   };
 
@@ -67,8 +77,9 @@ function App() {
         />
         <button
           onClick={handleSearch}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+          style={{ background: 'none', border: 'none', cursor: loading || !q.trim() ? 'not-allowed' : 'pointer', padding: 0, opacity: loading || !q.trim() ? 0.5 : 1 }}
           aria-label="Search"
+          disabled={loading || !q.trim()}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" fill="none" />
@@ -76,7 +87,9 @@ function App() {
           </svg>
         </button>
       </div>
-      {loading ? <p>Loading...</p> : (
+      {loading ? <p>Loading...</p> : error ? (
+        <div style={{ color: 'red', margin: '1em 0' }}>Error: {error}</div>
+      ) : (
         <>
           {videos.map(v => <VideoCard key={v.videoId} video={v} />)}
           <div className="pagination">

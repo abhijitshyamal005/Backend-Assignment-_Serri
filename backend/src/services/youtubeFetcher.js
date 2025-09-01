@@ -6,9 +6,8 @@ const config = require('../config');
 const apiKeyManager = new ApiKeyManager(config.YOUTUBE_API_KEYS);
 let lastFetchTime = new Date(Date.now() - 1000 * 60 * 60); // 1 hour ago
 
-
-// Fetch videos for a given query (used for user search)
-async function fetchVideosForQuery(query, publishedAfter = null) {
+// Fetch videos for a given query and store in DB
+async function fetchAndStoreVideos(query, publishedAfter = null) {
   let url = `https://www.googleapis.com/youtube/v3/search`;
   let params = {
     part: 'snippet',
@@ -48,10 +47,10 @@ async function fetchVideosForQuery(query, publishedAfter = null) {
   }
 }
 
-// Default fetch for cricket (or env query)
+// Background fetcher
 async function fetchLatestVideos() {
   let publishedAfter = lastFetchTime.toISOString();
-  await fetchVideosForQuery(config.YOUTUBE_SEARCH_QUERY, publishedAfter);
+  await fetchAndStoreVideos(config.YOUTUBE_SEARCH_QUERY, publishedAfter);
   lastFetchTime = new Date();
 }
 
@@ -60,4 +59,4 @@ function startFetcher() {
   fetchLatestVideos();
 }
 
-module.exports = { startFetcher, fetchVideosForQuery };
+module.exports = { startFetcher, fetchAndStoreVideos };
