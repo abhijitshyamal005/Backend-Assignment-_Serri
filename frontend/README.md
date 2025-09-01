@@ -1,0 +1,27 @@
+# YouTube Videos Dashboard (Frontend)
+
+A simple React dashboard to view, search, and paginate YouTube videos fetched by the backend.
+
+## Setup
+
+1. Go to the `frontend` folder:
+   ```sh
+   cd frontend
+   ```
+2. Install dependencies:
+   ```sh
+   npm install
+   ```
+3. Start the development server:
+   ```sh
+   npm run dev
+   ```
+   The app will open at http://localhost:5173 (or similar).
+
+- The frontend proxies API requests to the backend at http://localhost:3000.
+- Make sure the backend is running and accessible.
+
+## Features
+- Search videos by title or description (multi-word, partial match)
+- Pagination and page size selection
+- View video details and open on YouTube
