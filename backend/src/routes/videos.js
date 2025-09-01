@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 const Video = require('../models/video');
@@ -8,10 +7,15 @@ router.get('/', async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 20;
   const skip = (page - 1) * limit;
+  const sortField = req.query.sort || 'publishedAt';
+  const sortOrder = req.query.order === 'asc' ? 1 : -1;
+  const channel = req.query.channel;
+  const filter = {};
+  if (channel) filter.channelTitle = { $regex: channel, $options: 'i' };
   try {
-    const total = await Video.countDocuments();
-    const videos = await Video.find()
-      .sort({ publishedAt: -1 })
+    const total = await Video.countDocuments(filter);
+    const videos = await Video.find(filter)
+      .sort({ [sortField]: sortOrder })
       .skip(skip)
       .limit(limit);
     res.json({ total, page, limit, videos });
@@ -41,10 +45,15 @@ router.get('/search', async (req, res) => {
         { description: searchRegex },
       ]
     } : {};
+    if (req.query.channel) {
+      queryObj.channelTitle = { $regex: req.query.channel, $options: 'i' };
+    }
+    const sortField = req.query.sort || 'publishedAt';
+    const sortOrder = req.query.order === 'asc' ? 1 : -1;
     try {
       const total = await Video.countDocuments(queryObj);
       const videos = await Video.find(queryObj)
-        .sort({ publishedAt: -1 })
+        .sort({ [sortField]: sortOrder })
         .skip(skip)
         .limit(limit);
       return res.json({ total, page, limit, videos });

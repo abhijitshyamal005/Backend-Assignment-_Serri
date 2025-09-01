@@ -18,34 +18,45 @@ async function fetchAndStoreVideos(query, publishedAfter = null) {
     key: apiKeyManager.getKey(),
   };
   if (publishedAfter) params.publishedAfter = publishedAfter;
-  try {
-    const res = await axios.get(url, { params });
-    const items = res.data.items || [];
-    for (const item of items) {
-      const v = item.snippet;
-      await Video.updateOne(
-        { videoId: item.id.videoId },
-        {
-          videoId: item.id.videoId,
-          title: v.title,
-          description: v.description,
-          publishedAt: v.publishedAt,
-          thumbnails: v.thumbnails,
-          channelTitle: v.channelTitle,
-          raw: item,
-        },
-        { upsert: true }
-      );
+  let attempts = 0;
+  const maxAttempts = apiKeyManager.keys.length;
+  while (attempts < maxAttempts) {
+    try {
+      params.key = apiKeyManager.getKey();
+      const res = await axios.get(url, { params });
+      const items = res.data.items || [];
+      for (const item of items) {
+        const v = item.snippet;
+        await Video.updateOne(
+          { videoId: item.id.videoId },
+          {
+            videoId: item.id.videoId,
+            title: v.title,
+            description: v.description,
+            publishedAt: v.publishedAt,
+            thumbnails: v.thumbnails,
+            channelTitle: v.channelTitle,
+            raw: item,
+          },
+          { upsert: true }
+        );
+      }
+      return items.length;
+    } catch (err) {
+      if (err.response && err.response.status === 403) {
+        apiKeyManager.rotateKey();
+        attempts++;
+        if (attempts >= maxAttempts) {
+          console.log('All API keys exhausted.');
+          return 0;
+        }
+        continue;
+      }
+      console.log('Error fetching videos from Youtube API :', err.message);
+      return 0;
     }
-    return items.length;
-  } catch (err) {
-    if (err.response && err.response.status === 403) {
-      apiKeyManager.rotateKey();
-    }
-    console.log('Error fetching videos from Youtube API :', err.message);
-    
-    return 0;
   }
+  return 0;
 }
 
 // Background fetcher

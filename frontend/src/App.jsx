@@ -28,15 +28,42 @@ function App() {
   const [limit, setLimit] = useState(10);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [sort, setSort] = useState('publishedAt');
+  const [order, setOrder] = useState('desc');
+  const [channel, setChannel] = useState('');
 
   useEffect(() => {
     setLoading(true);
     setError(null);
-    const url = searchTerm
-      ? `/videos/search?q=${encodeURIComponent(searchTerm)}&page=${page}&limit=${limit}`
+    let url = searchTerm && searchTerm.trim()
+      ? `/videos/search?q=${encodeURIComponent(searchTerm)}&page=${page}&limit=${limit}&source=db`
       : `/videos?page=${page}&limit=${limit}`;
+    if (sort) url += `&sort=${sort}`;
+    if (order) url += `&order=${order}`;
+    if (channel) url += `&channel=${encodeURIComponent(channel)}`;
     axios.get(url)
-      .then(res => {
+      .then(async res => {
+        // If no results from DB, try YouTube API
+        if (searchTerm && searchTerm.trim() && res.data.videos.length === 0) {
+          let apiUrl = `/videos/search?q=${encodeURIComponent(searchTerm)}&page=${page}&limit=${limit}&source=api`;
+          if (sort) apiUrl += `&sort=${sort}`;
+          if (order) apiUrl += `&order=${order}`;
+          if (channel) apiUrl += `&channel=${encodeURIComponent(channel)}`;
+          try {
+            const apiRes = await axios.get(apiUrl);
+            setVideos(apiRes.data.videos);
+            setTotal(apiRes.data.total);
+            setError(null);
+            setLoading(false);
+            return;
+          } catch (apiErr) {
+            setError(apiErr.response?.data?.message || apiErr.message || 'Unknown error');
+            setVideos([]);
+            setTotal(0);
+            setLoading(false);
+            return;
+          }
+        }
         setVideos(res.data.videos);
         setTotal(res.data.total);
       })
@@ -46,15 +73,15 @@ function App() {
         setTotal(0);
       })
       .finally(() => setLoading(false));
-  }, [searchTerm, page, limit]);
+  }, [searchTerm, page, limit, sort, order, channel]);
 
   const totalPages = Math.ceil(total / limit);
 
 
   // Always trigger a search when clicking the search button
   const handleSearch = () => {
-    setSearchTerm(q + ' ' + Date.now()); 
     setPage(1);
+    setSearchTerm(q);
   };
 
   const handleInputKeyDown = (e) => {
@@ -86,12 +113,36 @@ function App() {
             <line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
         </button>
+        <select value={sort} onChange={e => setSort(e.target.value)}>
+          <option value="publishedAt">Published Date</option>
+          <option value="title">Title</option>
+        </select>
+        <select value={order} onChange={e => setOrder(e.target.value)}>
+          <option value="desc">Desc</option>
+          <option value="asc">Asc</option>
+        </select>
+        <input
+          type="text"
+          placeholder="Filter by channel..."
+          value={channel}
+          onChange={e => setChannel(e.target.value)}
+          style={{ width: 180 }}
+        />
       </div>
       {loading ? <p>Loading...</p> : error ? (
         <div style={{ color: 'red', margin: '1em 0' }}>Error: {error}</div>
       ) : (
         <>
-          {videos.map(v => <VideoCard key={v.videoId} video={v} />)}
+          {searchTerm && searchTerm.trim() && (
+            <div style={{ margin: '1em 0', color: '#333', fontWeight: 500 }}>
+              Showing results for: <span style={{ color: '#0077cc' }}>{searchTerm}</span>
+            </div>
+          )}
+          {videos.length === 0 ? (
+            <div style={{ margin: '2em 0', color: '#888' }}>No videos found.</div>
+          ) : (
+            videos.map(v => <VideoCard key={v.videoId} video={v} />)
+          )}
           <div className="pagination">
             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Prev</button>
             <span>Page {page} of {totalPages}</span>
