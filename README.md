@@ -57,9 +57,6 @@ FETCH_INTERVAL=10000
    ```sh
    cd backend
    npm install
-<<<<<<< HEAD
-   npm start
-=======
    ```
 3. Start the server:
    ```sh
